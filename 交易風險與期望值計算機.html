@@ -1,0 +1,1588 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>量化交易風險與期望值計算機</title>
+  <script src="https://cdn.tailwindcss.com/3.4.17"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+TC:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    body {
+      font-family: 'Inter', 'Noto Sans TC', -apple-system, BlinkMacSystemFont, sans-serif;
+      background-color: #090d16;
+      color: #e2e8f0;
+    }
+    input[type="number"]::-webkit-inner-spin-button,
+    input[type="number"]::-webkit-outer-spin-button {
+      opacity: 0.6;
+    }
+    .glass-card {
+      background: linear-gradient(180deg, rgba(17, 24, 39, 0.92) 0%, rgba(15, 23, 42, 0.96) 100%);
+      border: 1px solid rgba(51, 65, 85, 0.7);
+      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.4);
+    }
+    .tab-btn-active {
+      background-color: #0284c7;
+      color: #ffffff;
+      border-color: #38bdf8;
+    }
+    .tab-btn-inactive {
+      background-color: #1e293b;
+      color: #94a3b8;
+      border-color: #334155;
+    }
+    .tab-btn-inactive:hover {
+      color: #e2e8f0;
+      background-color: #334155;
+    }
+  </style>
+</head>
+<body class="min-h-screen antialiased selection:bg-sky-500/30 selection:text-sky-200">
+  <div class="max-w-7xl mx-auto px-3 sm:px-6 py-5 sm:py-8 space-y-6">
+
+    <!-- Header -->
+    <header class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-4 border-b border-slate-800/90">
+      <div>
+        <div class="flex items-center gap-2.5">
+          <span class="inline-flex items-center justify-center w-9 h-9 rounded-xl bg-sky-500/15 border border-sky-500/30 text-sky-400">
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+            </svg>
+          </span>
+          <div class="flex flex-wrap items-baseline gap-x-2.5 gap-y-0.5">
+            <h1 class="text-xl sm:text-2xl font-bold tracking-tight text-white">交易風險與期望值計算機</h1>
+            <span class="text-xs sm:text-sm font-medium text-slate-400">作者 Joyce Lau ( Hong Kong ) <span class="inline-flex items-center align-middle ml-0.5" title="女護士頭像" aria-label="女護士頭像"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 36 36" class="w-5 h-5 inline-block"><path fill="#F8FAFC" d="M10 10c0-3 3.5-5 8-5s8 2 8 5v2H10v-2z"/><path fill="#EF4444" d="M17 6.5h2v4h-2z"/><path fill="#EF4444" d="M16 7.5h4v2h-4z"/><path fill="#475569" d="M9 17c0-5 4-8 9-8s9 3 9 8v4c0 1.5-1 3-2 3H11c-1 0-2-1.5-2-3v-4z"/><circle cx="18" cy="18" r="6.5" fill="#FDE68A"/><path fill="#334155" d="M12 15c1.5-2.5 4-3.5 6-3.5s4.5 1 6 3.5c-2-.8-4-1.2-6-1.2s-4 .4-6 1.2z"/><circle cx="15.7" cy="18.2" r="0.9" fill="#1E293B"/><circle cx="20.3" cy="18.2" r="0.9" fill="#1E293B"/><path fill="none" stroke="#DC2626" stroke-width="1.2" stroke-linecap="round" d="M16.2 21c1 .9 2.6.9 3.6 0"/><path fill="#38BDF8" d="M10 32c0-4 3.5-6.5 8-6.5s8 2.5 8 6.5v2H10v-2z"/><path fill="#F8FAFC" d="M15.5 25.6L18 29l2.5-3.4c-.8-.1-1.6-.1-2.5-.1s-1.7 0-2.5.1z"/></svg></span></span>
+          </div>
+        </div>
+        <p class="mt-1 text-xs sm:text-sm text-slate-400">
+          整合止賺止蝕、倉位控管、賠率勝率期望值、連續虧損回撤壓力測試及蒙地卡羅資金模擬
+        </p>
+      </div>
+      <div class="flex flex-wrap items-center gap-2">
+        <button id="presetConservativeBtn" type="button" class="px-3 py-1.5 text-xs font-medium rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition">
+          穩健設定 (1%風險)
+        </button>
+        <button id="presetAggressiveBtn" type="button" class="px-3 py-1.5 text-xs font-medium rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition">
+          進取設定 (3%風險)
+        </button>
+        <button id="downloadAppHeaderBtn" type="button" class="px-3 py-1.5 text-xs font-medium rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white border border-indigo-500/60 transition">
+          下載程式 (.html)
+        </button>
+        <button id="resetBtn" type="button" class="px-3 py-1.5 text-xs font-medium rounded-lg bg-rose-950/50 hover:bg-rose-900/60 text-rose-300 border border-rose-800/60 transition">
+          重設預設值
+        </button>
+      </div>
+    </header>
+
+    <!-- Main Input & Analysis Grid -->
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-5">
+
+      <!-- Left Column: Inputs (5 cols on lg) -->
+      <div class="lg:col-span-5 space-y-5">
+
+        <!-- Card 1: 資金與倉位百分比止蝕 -->
+        <div class="glass-card rounded-2xl p-4 sm:p-5 space-y-4">
+          <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+            <h2 class="text-base font-semibold text-white flex items-center gap-2">
+              <span class="w-2 h-2 rounded-full bg-sky-400"></span>
+              1. 帳戶資金與自選倉位百分比止蝕
+            </h2>
+          </div>
+
+          <div>
+            <label for="capitalInput" class="block text-xs font-medium text-slate-300 mb-1.5">總交易本金 (USD)</label>
+            <input id="capitalInput" type="text" inputmode="numeric" value="100,000"
+              class="w-full px-3.5 py-2 rounded-xl bg-slate-900 border border-slate-700 text-white text-sm focus:outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500" />
+          </div>
+
+          <!-- Position Sizing Mode Switch -->
+          <div>
+            <span class="block text-xs font-medium text-slate-300 mb-1.5">倉位與止蝕計算方式</span>
+            <div class="grid grid-cols-2 gap-2">
+              <button id="posModeRiskBtn" type="button" class="px-3 py-2 text-xs font-medium rounded-xl border transition tab-btn-active">
+                以總資金止蝕%反推倉位
+              </button>
+              <button id="posModeCustomBtn" type="button" class="px-3 py-2 text-xs font-medium rounded-xl border transition tab-btn-inactive">
+                自選投入倉位%算風險
+              </button>
+            </div>
+          </div>
+
+          <!-- Mode A: Fixed Risk % -->
+          <div id="posModeRiskBox" class="space-y-2">
+            <div class="flex justify-between items-center">
+              <label for="riskPctInput" class="text-xs font-medium text-slate-300">單筆允許最大虧損 (佔總資金 %)</label>
+              <span id="riskAmountLabel" class="text-xs font-semibold text-rose-400">-$2,000</span>
+            </div>
+            <div class="flex items-center gap-3">
+              <input id="riskPctRange" type="range" min="0.25" max="15" step="0.25" value="2" class="flex-1 accent-sky-500 cursor-pointer" />
+              <div class="relative w-24">
+                <input id="riskPctInput" type="number" min="0.1" max="100" step="0.1" value="2"
+                  class="w-full px-2.5 py-1.5 pr-6 rounded-lg bg-slate-900 border border-slate-700 text-white text-sm text-right focus:outline-none focus:border-sky-500" />
+                <span class="absolute right-2.5 top-1.5 text-xs text-slate-400">%</span>
+              </div>
+            </div>
+            <div class="flex flex-wrap gap-1.5 pt-1">
+              <button type="button" data-risk="0.5" class="quick-risk-btn px-2.5 py-1 text-[11px] rounded-md bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700">0.5%</button>
+              <button type="button" data-risk="1" class="quick-risk-btn px-2.5 py-1 text-[11px] rounded-md bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700">1%</button>
+              <button type="button" data-risk="2" class="quick-risk-btn px-2.5 py-1 text-[11px] rounded-md bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700">2%</button>
+              <button type="button" data-risk="3" class="quick-risk-btn px-2.5 py-1 text-[11px] rounded-md bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700">3%</button>
+              <button type="button" data-risk="5" class="quick-risk-btn px-2.5 py-1 text-[11px] rounded-md bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700">5%</button>
+            </div>
+          </div>
+
+          <!-- Mode B: Custom Position % -->
+          <div id="posModeCustomBox" class="hidden space-y-2">
+            <div class="flex justify-between items-center">
+              <label for="customPosPctInput" class="text-xs font-medium text-slate-300">自選投入倉位比例 (佔總資金 %)</label>
+              <span id="customPosAmountLabel" class="text-xs font-semibold text-sky-400">$25,000</span>
+            </div>
+            <div class="flex items-center gap-3">
+              <input id="customPosPctRange" type="range" min="1" max="100" step="1" value="25" class="flex-1 accent-sky-500 cursor-pointer" />
+              <div class="relative w-24">
+                <input id="customPosPctInput" type="number" min="1" max="500" step="1" value="25"
+                  class="w-full px-2.5 py-1.5 pr-6 rounded-lg bg-slate-900 border border-slate-700 text-white text-sm text-right focus:outline-none focus:border-sky-500" />
+                <span class="absolute right-2.5 top-1.5 text-xs text-slate-400">%</span>
+              </div>
+            </div>
+            <div class="flex flex-wrap gap-1.5 pt-1">
+              <button type="button" data-pos="10" class="quick-pos-btn px-2.5 py-1 text-[11px] rounded-md bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700">10% 倉位</button>
+              <button type="button" data-pos="25" class="quick-pos-btn px-2.5 py-1 text-[11px] rounded-md bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700">25% 倉位</button>
+              <button type="button" data-pos="50" class="quick-pos-btn px-2.5 py-1 text-[11px] rounded-md bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700">50% 倉位</button>
+              <button type="button" data-pos="100" class="quick-pos-btn px-2.5 py-1 text-[11px] rounded-md bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700">100% 滿倉</button>
+            </div>
+          </div>
+
+          <!-- Position & Risk Readout Summary -->
+          <div class="rounded-xl bg-slate-900/90 border border-slate-800 p-3 grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+            <div>
+              <span class="text-slate-400 block">開倉總金額 (槓桿/現貨)</span>
+              <span id="posReadoutDollar" class="text-sm font-semibold text-white">$40,000</span>
+              <span id="posReadoutPct" class="text-[11px] text-sky-400 ml-1">(40.0%)</span>
+            </div>
+            <div>
+              <span class="text-slate-400 block">觸及止蝕時實際虧損</span>
+              <span id="riskReadoutDollar" class="text-sm font-semibold text-rose-400">-$2,000</span>
+              <span id="riskReadoutPct" class="text-[11px] text-rose-300 ml-1">(-2.00%)</span>
+            </div>
+            <div>
+              <span class="text-slate-400 block">可買入股數 / 數量</span>
+              <span id="sharesReadout" class="text-sm font-semibold text-emerald-400">400 股</span>
+              <span id="sharesSubReadout" class="text-[11px] text-slate-400 block">依現價 $100 計</span>
+            </div>
+          </div>
+          <div id="leverageWarning" class="hidden rounded-xl bg-amber-950/40 border border-amber-700/50 px-3 py-2 text-xs text-amber-300">
+            注意：目前所需倉位超過總本金 100%，代表需要使用槓桿（約 <span id="leverageRatioText">1.0x</span>）才能達到此止蝕風險設定。
+          </div>
+        </div>
+
+        <!-- Card 2: 止賺止蝕與盈虧比例 -->
+        <div class="glass-card rounded-2xl p-4 sm:p-5 space-y-4">
+          <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+            <h2 class="text-base font-semibold text-white flex items-center gap-2">
+              <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+              2. 止賺止蝕與盈虧比例
+            </h2>
+            <div class="flex rounded-lg overflow-hidden border border-slate-700">
+              <button id="rrModePriceBtn" type="button" class="px-2.5 py-1 text-[11px] font-medium tab-btn-active border-0">價位模式</button>
+              <button id="rrModeManualBtn" type="button" class="px-2.5 py-1 text-[11px] font-medium tab-btn-inactive border-0">比例模式</button>
+            </div>
+          </div>
+
+          <!-- Price Mode -->
+          <div id="rrPriceBox" class="space-y-3">
+            <!-- US Stock Ticker Lookup -->
+            <div class="rounded-xl bg-slate-900/80 border border-slate-800 p-2.5 space-y-2">
+              <div class="flex items-center justify-between gap-2">
+                <label for="tickerInput" class="text-[11px] font-medium text-slate-300 whitespace-nowrap">美股代號 (Ticker)</label>
+                <div class="flex items-center gap-1.5 flex-1 max-w-xs">
+                  <input id="tickerInput" type="text" placeholder="例如 AAPL, NVDA, TSLA" value="AAPL"
+                    class="w-full uppercase px-2.5 py-1.5 rounded-lg bg-slate-950 border border-slate-700 text-white text-xs focus:outline-none focus:border-sky-500" />
+                  <button id="fetchTickerBtn" type="button"
+                    class="px-3 py-1.5 rounded-lg bg-sky-600 hover:bg-sky-500 text-white text-xs font-medium whitespace-nowrap transition">
+                    獲取最新價
+                  </button>
+                  <button id="toggleApiKeyBtn" type="button" title="設定 Finnhub API Key"
+                    class="px-2 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 text-[11px] whitespace-nowrap transition">
+                    Key
+                  </button>
+                </div>
+              </div>
+              <div id="apiKeyBox" class="hidden pt-1.5 border-t border-slate-800/80 space-y-1.5">
+                <div class="flex flex-wrap items-center gap-1.5">
+                  <input id="finnhubKeyInput" type="password" placeholder="輸入免費 Finnhub API Key"
+                    class="flex-1 min-w-[160px] px-2.5 py-1.5 rounded-lg bg-slate-950 border border-slate-700 text-white text-[11px] focus:outline-none focus:border-sky-500" />
+                  <button id="saveApiKeyBtn" type="button"
+                    class="px-2.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-[11px] font-medium whitespace-nowrap transition">
+                    儲存記憶
+                  </button>
+                  <button id="downloadWithKeyBtn" type="button"
+                    class="px-2.5 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-[11px] font-medium whitespace-nowrap transition">
+                    下載程式到電腦 (.html)
+                  </button>
+                </div>
+                <p class="text-[10px] text-slate-400 leading-relaxed">
+                  提示：瀏覽器預覽環境在登出或重開後可能會清除暫存；點擊「下載專屬版 (.html)」可將已綁定 API Key 的計算機儲存到電腦或手機，下次開機直接打開即可使用。
+                </p>
+              </div>
+              <div id="tickerStatus" class="text-[11px] text-slate-400 hidden"></div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-2">
+              <button id="dirLongBtn" type="button" class="px-3 py-1.5 text-xs font-semibold rounded-xl border border-emerald-500/50 bg-emerald-500/15 text-emerald-300 transition">
+                做多 (Long)
+              </button>
+              <button id="dirShortBtn" type="button" class="px-3 py-1.5 text-xs font-semibold rounded-xl border border-slate-700 bg-slate-800/70 text-slate-400 hover:text-slate-200 transition">
+                做空 (Short)
+              </button>
+            </div>
+
+            <div class="grid grid-cols-3 gap-2.5">
+              <div>
+                <label for="slPriceInput" class="block text-[11px] font-medium text-rose-400 mb-1">止蝕價 (USD)</label>
+                <input id="slPriceInput" type="number" min="0.0001" step="any" value="95"
+                  class="w-full px-2.5 py-2 rounded-xl bg-slate-900 border border-rose-700/60 text-rose-300 text-sm focus:outline-none focus:border-rose-500" />
+              </div>
+              <div>
+                <label for="entryPriceInput" class="block text-[11px] font-medium text-slate-400 mb-1">現價 (USD)</label>
+                <input id="entryPriceInput" type="number" min="0.0001" step="any" value="100"
+                  class="w-full px-2.5 py-2 rounded-xl bg-slate-900 border border-slate-700 text-white text-sm focus:outline-none focus:border-sky-500" />
+              </div>
+              <div>
+                <label for="tpPriceInput" class="block text-[11px] font-medium text-emerald-400 mb-1">止賺價 (USD)</label>
+                <input id="tpPriceInput" type="number" min="0.0001" step="any" value="110"
+                  class="w-full px-2.5 py-2 rounded-xl bg-slate-900 border border-emerald-700/60 text-emerald-300 text-sm focus:outline-none focus:border-emerald-500" />
+              </div>
+            </div>
+
+            <div id="priceValidationMsg" class="hidden rounded-lg bg-rose-950/60 border border-rose-700/60 px-3 py-1.5 text-xs text-rose-300"></div>
+
+            <div class="grid grid-cols-2 gap-3 rounded-xl bg-slate-900/90 border border-slate-800 p-3 text-xs">
+              <div>
+                <span class="text-slate-400 block">止蝕幅度 / 風險距離</span>
+                <span id="slPctReadout" class="text-sm font-semibold text-rose-400">-5.00%</span>
+                <span id="slDollarReadout" class="text-[11px] text-rose-300 ml-1">(-$2,000)</span>
+              </div>
+              <div>
+                <span class="text-slate-400 block">止賺幅度 / 預期獲利</span>
+                <span id="tpPctReadout" class="text-sm font-semibold text-emerald-400">+10.00%</span>
+                <span id="tpDollarReadout" class="text-[11px] text-emerald-300 ml-1">(+$4,000)</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Manual R:R Mode -->
+          <div id="rrManualBox" class="hidden space-y-3">
+            <div>
+              <div class="flex justify-between items-center mb-1">
+                <label for="manualSlPctInput" class="text-xs font-medium text-slate-300">止蝕距離百分比 (由入場價起計 %)</label>
+              </div>
+              <div class="flex items-center gap-3">
+                <input id="manualSlPctRange" type="range" min="0.5" max="30" step="0.5" value="5" class="flex-1 accent-rose-500 cursor-pointer" />
+                <div class="relative w-24">
+                  <input id="manualSlPctInput" type="number" min="0.1" max="99" step="0.1" value="5"
+                    class="w-full px-2.5 py-1.5 pr-6 rounded-lg bg-slate-900 border border-slate-700 text-white text-sm text-right focus:outline-none focus:border-sky-500" />
+                  <span class="absolute right-2.5 top-1.5 text-xs text-slate-400">%</span>
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <div class="flex justify-between items-center mb-1">
+                <label for="manualRRInput" class="text-xs font-medium text-slate-300">賠率 / 盈虧比例 (賺幾多倍 R)</label>
+                <span id="manualRRLabel" class="text-xs font-semibold text-sky-400">1 : 2.00</span>
+              </div>
+              <div class="flex items-center gap-3">
+                <input id="manualRRRange" type="range" min="0.5" max="10" step="0.1" value="2" class="flex-1 accent-emerald-500 cursor-pointer" />
+                <div class="relative w-24">
+                  <input id="manualRRInput" type="number" min="0.1" max="50" step="0.1" value="2"
+                    class="w-full px-2.5 py-1.5 pr-6 rounded-lg bg-slate-900 border border-slate-700 text-white text-sm text-right focus:outline-none focus:border-sky-500" />
+                  <span class="absolute right-2.5 top-1.5 text-xs text-slate-400">R</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Card 3: 勝率與期望值參數 -->
+        <div class="glass-card rounded-2xl p-4 sm:p-5 space-y-4">
+          <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+            <h2 class="text-base font-semibold text-white flex items-center gap-2">
+              <span class="w-2 h-2 rounded-full bg-amber-400"></span>
+              3. 勝率與期望值 (Expectancy)
+            </h2>
+          </div>
+
+          <div>
+            <div class="flex justify-between items-center mb-1">
+              <label for="winRateInput" class="text-xs font-medium text-slate-300">交易勝率 (Win Rate %)</label>
+              <span id="lossRateLabel" class="text-xs text-slate-400">敗率: 55.0%</span>
+            </div>
+            <div class="flex items-center gap-3">
+              <input id="winRateRange" type="range" min="5" max="95" step="1" value="45" class="flex-1 accent-emerald-500 cursor-pointer" />
+              <div class="relative w-24">
+                <input id="winRateInput" type="number" min="1" max="99" step="0.5" value="45"
+                  class="w-full px-2.5 py-1.5 pr-6 rounded-lg bg-slate-900 border border-slate-700 text-white text-sm text-right focus:outline-none focus:border-sky-500" />
+                <span class="absolute right-2.5 top-1.5 text-xs text-slate-400">%</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-3 gap-2.5 pt-1 text-center">
+            <div class="rounded-xl bg-slate-900/90 border border-slate-800 p-2.5">
+              <span class="text-[11px] text-slate-400 block">期望值 (R)</span>
+              <span id="evRReadout" class="text-sm font-bold text-emerald-400">+0.35 R</span>
+            </div>
+            <div class="rounded-xl bg-slate-900/90 border border-slate-800 p-2.5">
+              <span class="text-[11px] text-slate-400 block">打和所需勝率</span>
+              <span id="breakevenWRReadout" class="text-sm font-bold text-slate-200">33.3%</span>
+            </div>
+            <div class="rounded-xl bg-slate-900/90 border border-slate-800 p-2.5">
+              <span class="text-[11px] text-slate-400 block">凱利公式倉位</span>
+              <span id="kellyReadout" class="text-sm font-bold text-sky-400">17.5%</span>
+            </div>
+          </div>
+          <p class="text-[11px] text-slate-400 leading-relaxed">
+            公式：期望值 = (勝率 × 盈虧比) - (敗率 × 1)。當期望值大於 0 時，長期執行策略才具正統計優勢；凱利比例僅供風險上限參考（實戰常用半凱利）。
+          </p>
+        </div>
+
+      </div>
+
+      <!-- Right Column: Stress Test & Simulation (7 cols on lg) -->
+      <div class="lg:col-span-7 space-y-5">
+
+        <!-- Card 4: 連續虧損 N 次之後 最大資金虧損 -->
+        <div class="glass-card rounded-2xl p-4 sm:p-5 space-y-4">
+          <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 border-b border-slate-800 pb-3">
+            <h2 class="text-base font-semibold text-white flex items-center gap-2">
+              <span class="w-2 h-2 rounded-full bg-rose-400"></span>
+              4. 連續虧損壓力測試 (Max Drawdown)
+            </h2>
+            <div class="flex items-center gap-2">
+              <label for="streakInput" class="text-xs text-slate-400">連續虧損次數:</label>
+              <input id="streakRange" type="range" min="1" max="30" step="1" value="5" class="w-24 sm:w-28 accent-rose-500 cursor-pointer" />
+              <div class="relative w-16">
+                <input id="streakInput" type="number" min="1" max="100" step="1" value="5"
+                  class="w-full px-2 py-1 pr-5 rounded-lg bg-slate-900 border border-slate-700 text-white text-xs text-right focus:outline-none focus:border-rose-500" />
+                <span class="absolute right-1.5 top-1 text-[11px] text-slate-400">次</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <!-- Compounding Loss -->
+            <div class="rounded-xl bg-slate-900/90 border border-slate-800 p-3.5 space-y-2">
+              <div class="flex items-center justify-between">
+                <span class="text-xs font-semibold text-slate-200">複利止蝕 (每筆按剩餘資金%)</span>
+                <span id="streakProbLabel" class="text-[11px] text-slate-400">發生機率: 5.03%</span>
+              </div>
+              <div class="flex items-baseline justify-between">
+                <span id="streakCompDDPct" class="text-xl font-bold text-rose-400">-9.61%</span>
+                <span id="streakCompRemain" class="text-xs text-slate-300">剩餘 $90,392</span>
+              </div>
+              <div class="text-[11px] text-slate-400 flex justify-between pt-1 border-t border-slate-800/80">
+                <span>累計虧損: <strong id="streakCompLossAmt" class="text-rose-300">-$9,608</strong></span>
+                <span>回本需賺: <strong id="streakCompRecover" class="text-amber-300">+10.63%</strong></span>
+              </div>
+            </div>
+
+            <!-- Fixed Dollar Loss -->
+            <div class="rounded-xl bg-slate-900/90 border border-slate-800 p-3.5 space-y-2">
+              <div class="flex items-center justify-between">
+                <span class="text-xs font-semibold text-slate-200">單利止蝕 (每筆固定虧損金額)</span>
+                <span class="text-[11px] text-slate-400">每筆 -$2,000</span>
+              </div>
+              <div class="flex items-baseline justify-between">
+                <span id="streakFixedDDPct" class="text-xl font-bold text-rose-400">-10.00%</span>
+                <span id="streakFixedRemain" class="text-xs text-slate-300">剩餘 $90,000</span>
+              </div>
+              <div class="text-[11px] text-slate-400 flex justify-between pt-1 border-t border-slate-800/80">
+                <span>累計虧損: <strong id="streakFixedLossAmt" class="text-rose-300">-$10,000</strong></span>
+                <span>回本需賺: <strong id="streakFixedRecover" class="text-amber-300">+11.11%</strong></span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Streak Table -->
+          <div class="overflow-x-auto">
+            <table class="w-full text-xs text-left border-collapse">
+              <thead>
+                <tr class="border-b border-slate-800 text-slate-400">
+                  <th class="py-2 pr-3 font-medium">連虧次數</th>
+                  <th class="py-2 px-3 font-medium">複利剩餘資金</th>
+                  <th class="py-2 px-3 font-medium">複利總虧損%</th>
+                  <th class="py-2 px-3 font-medium">回本所需漲幅</th>
+                  <th class="py-2 pl-3 font-medium text-right">出現機率 (依勝率)</th>
+                </tr>
+              </thead>
+              <tbody id="streakTableBody" class="divide-y divide-slate-800/70 text-slate-300">
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Card 5: 按照期望值底下的模擬資金計算 -->
+        <div class="glass-card rounded-2xl p-4 sm:p-5 space-y-4">
+          <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-slate-800 pb-3">
+            <div>
+              <h2 class="text-base font-semibold text-white flex items-center gap-2">
+                <span class="w-2 h-2 rounded-full bg-indigo-400"></span>
+                5. 期望值底下的模擬資金曲線
+              </h2>
+              <p class="text-[11px] text-slate-400 mt-0.5">比較「理論期望值增長」與「隨機勝率抽樣模擬路徑」</p>
+            </div>
+            <div class="flex flex-wrap items-center gap-2">
+              <div class="flex items-center gap-1.5 bg-slate-900 border border-slate-700 rounded-lg px-2 py-1">
+                <label for="simTradesInput" class="text-[11px] text-slate-400">交易次數</label>
+                <input id="simTradesInput" type="number" min="10" max="1000" step="10" value="100"
+                  class="w-14 bg-transparent text-white text-xs text-right focus:outline-none" />
+              </div>
+              <select id="simCompoundSelect" class="bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1 text-xs text-slate-200 focus:outline-none focus:border-sky-500">
+                <option value="compound">複利滾存 (按剩餘資金%)</option>
+                <option value="fixed">單利固定 (每筆固定風險金額)</option>
+              </select>
+              <button id="rerunSimBtn" type="button" class="px-3 py-1.5 text-xs font-medium rounded-lg bg-sky-600 hover:bg-sky-500 text-white transition flex items-center gap-1.5">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+                重新抽樣模擬
+              </button>
+            </div>
+          </div>
+
+          <!-- Fixed Chart Readout Bar (Never covers chart lines) -->
+          <div id="chartHoverBar" class="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-slate-900/95 border border-slate-800 px-3 py-2 text-xs">
+            <span id="hoverTradeLabel" class="font-semibold text-slate-300">期末（第 100 筆）— 點擊或滑動圖表查看各筆數值</span>
+            <div class="flex flex-wrap items-center gap-3">
+              <span class="text-sky-400">理論期望值: <strong id="hoverExpVal">USD $0</strong></span>
+              <span class="text-emerald-400">蒙地卡羅中位數: <strong id="hoverMedVal">USD $0</strong></span>
+            </div>
+          </div>
+
+          <!-- Chart Container -->
+          <div class="relative h-72 w-full">
+            <canvas id="equityChart"></canvas>
+          </div>
+
+          <!-- Simulation KPIs -->
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-2.5 pt-1">
+            <div class="rounded-xl bg-slate-900/90 border border-slate-800 p-3">
+              <span class="text-[11px] text-slate-400 block">期望值理論期末資金</span>
+              <span id="simExpectedFinal" class="text-sm sm:text-base font-bold text-sky-400">$200,966</span>
+              <span id="simExpectedPct" class="text-[11px] text-slate-400 block">+100.97%</span>
+            </div>
+            <div class="rounded-xl bg-slate-900/90 border border-slate-800 p-3">
+              <span class="text-[11px] text-slate-400 block">蒙地卡羅中位數期末</span>
+              <span id="simRandomFinal" class="text-sm sm:text-base font-bold text-emerald-400">$185,400</span>
+              <span id="simRandomWinLoss" class="text-[11px] text-slate-400 block">45 勝 / 55 負</span>
+            </div>
+            <div class="rounded-xl bg-slate-900/90 border border-slate-800 p-3">
+              <span class="text-[11px] text-slate-400 block">模擬期間最大回撤</span>
+              <span id="simMaxDD" class="text-sm sm:text-base font-bold text-rose-400">-14.20%</span>
+              <span id="simMaxStreak" class="text-[11px] text-slate-400 block">最長連虧 6 次</span>
+            </div>
+            <div class="rounded-xl bg-slate-900/90 border border-slate-800 p-3">
+              <span class="text-[11px] text-slate-400 block">5條蒙地卡羅中位數</span>
+              <span id="simMedianFinal" class="text-sm sm:text-base font-bold text-indigo-300">$192,100</span>
+              <span id="simMinMaxRange" class="text-[11px] text-slate-400 block">區間: $140k - $250k</span>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Bottom Summary KPIs -->
+    <section class="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+      <div class="glass-card rounded-2xl p-4">
+        <div class="flex items-center justify-between">
+          <span class="text-xs font-medium text-slate-400">盈虧比例 (R:R)</span>
+          <span id="kpiRRBadge" class="text-[11px] px-2 py-0.5 rounded-full font-medium bg-sky-500/15 text-sky-300 border border-sky-500/30">1 : 2.00</span>
+        </div>
+        <div id="kpiRRValue" class="mt-2 text-2xl sm:text-3xl font-bold text-white tracking-tight">2.00 R</div>
+        <p id="kpiRRSub" class="mt-1 text-xs text-slate-400">損益兩平勝率: 33.3%</p>
+      </div>
+
+      <div class="glass-card rounded-2xl p-4">
+        <div class="flex items-center justify-between">
+          <span class="text-xs font-medium text-slate-400">每筆期望值 (EV)</span>
+          <span id="kpiEVBadge" class="text-[11px] px-2 py-0.5 rounded-full font-medium bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">正期望值</span>
+        </div>
+        <div id="kpiEVValue" class="mt-2 text-2xl sm:text-3xl font-bold text-emerald-400 tracking-tight">+0.35 R</div>
+        <p id="kpiEVSub" class="mt-1 text-xs text-slate-400">平均每筆預期 +$700 (+0.70%)</p>
+      </div>
+
+      <div class="glass-card rounded-2xl p-4">
+        <div class="flex items-center justify-between">
+          <span class="text-xs font-medium text-slate-400">建議 / 投入倉位</span>
+          <span id="kpiPosBadge" class="text-[11px] px-2 py-0.5 rounded-full font-medium bg-amber-500/15 text-amber-300 border border-amber-500/30">倉位 40.0%</span>
+        </div>
+        <div id="kpiPosValue" class="mt-2 text-2xl sm:text-3xl font-bold text-white tracking-tight">$40,000</div>
+        <p id="kpiPosSub" class="mt-1 text-xs text-slate-400">單筆最大止蝕: $2,000 (2.00%)</p>
+      </div>
+
+      <div class="glass-card rounded-2xl p-4">
+        <div class="flex items-center justify-between">
+          <span class="text-xs font-medium text-slate-400">連虧 <span id="kpiStreakN">5</span> 次最大虧損</span>
+          <span id="kpiStreakBadge" class="text-[11px] px-2 py-0.5 rounded-full font-medium bg-rose-500/15 text-rose-300 border border-rose-500/30">複利回撤</span>
+        </div>
+        <div id="kpiStreakValue" class="mt-2 text-2xl sm:text-3xl font-bold text-rose-400 tracking-tight">-9.61%</div>
+        <p id="kpiStreakSub" class="mt-1 text-xs text-slate-400">剩餘資金: $90,392 (-$9,608)</p>
+      </div>
+    </section>
+
+    <!-- Notes: Finnhub API Guide, Kelly Criterion & Monte Carlo Simulation -->
+    <section class="glass-card rounded-2xl p-4 sm:p-5 space-y-4">
+      <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+        <h2 class="text-base font-semibold text-white flex items-center gap-2">
+          <span class="w-2 h-2 rounded-full bg-purple-400"></span>
+          備註：Finnhub API 使用指南、凱利公式與蒙地卡羅模擬
+        </h2>
+      </div>
+
+      <div class="rounded-xl bg-slate-900/80 border border-slate-800 p-4 space-y-2.5 text-xs leading-relaxed text-slate-300">
+        <h3 class="text-sm font-semibold text-amber-400">一、Finnhub API Key 免費申請與永久保留方法</h3>
+        <p class="text-slate-400">無需信用卡，免費方案每分鐘可查詢 60 次美股即時報價（每秒上限 30 次）。若直接點擊連結無法於預覽視窗跳轉，可點擊右側「複製網址」再貼到瀏覽器開啟：</p>
+        <ol class="list-decimal list-inside space-y-1.5 text-slate-300">
+          <li>
+            <strong class="text-slate-200">註冊帳號：</strong>前往
+            <a href="https://finnhub.io/register" target="_blank" rel="noopener noreferrer" class="text-sky-400 underline hover:text-sky-300">https://finnhub.io/register</a>
+            <button type="button" data-copy-url="https://finnhub.io/register" class="copy-url-btn ml-1.5 px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-sky-300 border border-slate-700 text-[10px]">複製網址</button>
+            ，輸入電郵地址、名稱及密碼建立個人帳戶（或選擇以 Google 帳號註冊）。
+          </li>
+          <li><strong class="text-slate-200">驗證電郵：</strong>前往你的信箱點擊 Finnhub 寄出的驗證連結完成開通。</li>
+          <li>
+            <strong class="text-slate-200">複製 API Key：</strong>登入後進入
+            <a href="https://finnhub.io/dashboard" target="_blank" rel="noopener noreferrer" class="text-sky-400 underline hover:text-sky-300">https://finnhub.io/dashboard</a>
+            <button type="button" data-copy-url="https://finnhub.io/dashboard" class="copy-url-btn ml-1.5 px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-sky-300 border border-slate-700 text-[10px]">複製網址</button>
+            ，頁面最上方就會顯示你的 API Key，直接點擊複製。
+          </li>
+          <li><strong class="text-slate-200">貼回計算機：</strong>回到風險計算機的「美股代號 (Ticker)」區塊，點擊右側的 <strong>Key</strong> 按鈕，貼上 API Key 並點擊「儲存記憶」，之後輸入美股代號（例如 AAPL、NVDA、TSLA）並按「獲取最新價」即可即時取得報價。</li>
+        </ol>
+        <div class="rounded-lg bg-slate-950/80 border border-slate-800/90 p-3 space-y-1">
+          <p class="font-semibold text-indigo-300">如何下載到電腦／手機並永久保留 API Key：</p>
+          <p>點擊 <strong>Key</strong> 內的「下載程式到電腦 (.html)」或右上角「下載程式 (.html)」，將 <code class="text-sky-300">risk_calculator_with_api.html</code> 儲存至電腦桌面或手機「下載」資料夾。以後每次開機直接用 <strong>Chrome / Edge / Safari</strong> 打開該檔案（或建立桌面捷徑），API Key 就會自動帶入，無需重新輸入。</p>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs leading-relaxed text-slate-300">
+        <div class="rounded-xl bg-slate-900/80 border border-slate-800 p-4 space-y-2">
+          <h3 class="text-sm font-semibold text-sky-400">二、凱利公式 (Kelly Criterion)</h3>
+          <p>
+            <strong class="text-slate-200">核心原理：</strong>由 John L. Kelly Jr. 提出，用於在已知「勝率 (W)」與「盈虧比 (R)」的前提下，計算每筆交易應承受多少總資金風險，才能讓長期複利增長最大化，同時避免過度下注導致爆倉。
+          </p>
+          <p class="font-mono text-[11px] bg-slate-950/90 border border-slate-800 rounded-lg px-3 py-1.5 text-sky-300">
+            凱利比例 = 勝率 - (敗率 ÷ 盈虧比)
+          </p>
+          <p>
+            <strong class="text-slate-200">使用方法：</strong>若計算結果小於或等於 0%，代表策略不具正期望值，不應開倉。實戰中「全凱利」的資金波動非常劇烈，建議將顯示的凱利比例除以 2（<strong class="text-emerald-300">半凱利</strong>）或除以 4（<strong class="text-emerald-300">四分之一凱利</strong>）作為單筆最大風險上限。
+          </p>
+        </div>
+        <div class="rounded-xl bg-slate-900/80 border border-slate-800 p-4 space-y-2">
+          <h3 class="text-sm font-semibold text-emerald-400">三、蒙地卡羅模擬 (Monte Carlo Simulation)</h3>
+          <p>
+            <strong class="text-slate-200">核心原理：</strong>即使策略長期具有正期望值，短期內的輸贏順序也是隨機的（例如可能連續止蝕 5 次，也可能連續獲利）。蒙地卡羅模擬透過大量隨機抽樣，重現真實交易中資金曲線的起伏與回撤風險。
+          </p>
+          <p>
+            <strong class="text-slate-200">使用方法：</strong>本計算機會依你設定的勝率與盈虧比進行多組隨機交易序列模擬，並於圖表顯示位於<strong class="text-emerald-300">中位數</strong>的代表路徑，與藍色的「理論期望值曲線」對比。建議多按幾次「重新抽樣模擬」，觀察模擬期間的<strong class="text-rose-300">最大回撤</strong>與<strong class="text-amber-300">最長連虧次數</strong>，確保你的單筆止蝕比例在心理與資金承受範圍內。
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Disclaimer Footer -->
+    <footer class="rounded-2xl bg-slate-900/60 border border-slate-800/80 px-4 py-3 text-center">
+      <p class="text-[11px] sm:text-xs text-slate-400 leading-relaxed">
+        Disclaimer: 作者並非港交所持牌人士, 以上程式只供作教學用途, 作者不能確保所產生的數字絕對正確, 投資涉及相關風險, 投資者請審慎利用。
+      </p>
+    </footer>
+  </div>
+
+  <script>
+    const state = {
+      capital: 100000,
+      posMode: 'risk', // 'risk' | 'custom'
+      riskPct: 2,
+      customPosPct: 25,
+      rrMode: 'price', // 'price' | 'manual'
+      direction: 'long', // 'long' | 'short'
+      entryPrice: 100,
+      tpPrice: 110,
+      slPrice: 95,
+      manualSlPct: 5,
+      manualRR: 2,
+      winRate: 45,
+      streakN: 5,
+      simTrades: 100,
+      simMode: 'compound', // 'compound' | 'fixed'
+      simSeed: 1
+    };
+
+    let equityChart = null;
+
+    // Elements
+    const el = (id) => document.getElementById(id);
+
+    function formatMoney(val) {
+      if (!isFinite(val)) return 'USD $0';
+      const sign = val < 0 ? '-' : '';
+      return sign + 'USD $' + Math.abs(val).toLocaleString('en-US', { maximumFractionDigits: 0 });
+    }
+
+    function formatShortMoney(val) {
+      if (!isFinite(val)) return 'USD $0';
+      if (Math.abs(val) >= 1000000) return 'USD $' + (val / 1000000).toFixed(2) + 'M';
+      if (Math.abs(val) >= 1000) return 'USD $' + (val / 1000).toFixed(1) + 'k';
+      return 'USD $' + val.toFixed(0);
+    }
+
+    // Deterministic PRNG (Mulberry32) so simulation stays stable on slider tweaks unless re-run
+    function createRng(seed) {
+      let a = seed >>> 0;
+      return function() {
+        let t = a += 0x6D2B79F5;
+        t = Math.imul(t ^ (t >>> 15), t | 1);
+        t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+        return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+      };
+    }
+
+    function computeMetrics() {
+      const capital = Math.max(1, Number(state.capital) || 100000);
+      let slDistPct = 5;
+      let tpDistPct = 10;
+      let rr = 2;
+      let priceError = '';
+
+      if (state.rrMode === 'price') {
+        const entry = Number(state.entryPrice);
+        const tp = Number(state.tpPrice);
+        const sl = Number(state.slPrice);
+
+        if (entry <= 0 || tp <= 0 || sl <= 0) {
+          priceError = '價格必須大於 0。';
+        } else if (state.direction === 'long') {
+          if (sl >= entry) priceError = '做多時，止蝕價必須低於入場價。';
+          else if (tp <= entry) priceError = '做多時，止賺價必須高於入場價。';
+          else {
+            slDistPct = ((entry - sl) / entry) * 100;
+            tpDistPct = ((tp - entry) / entry) * 100;
+            rr = tpDistPct / slDistPct;
+          }
+        } else {
+          if (sl <= entry) priceError = '做空時，止蝕價必須高於入場價。';
+          else if (tp >= entry) priceError = '做空時，止賺價必須低於入場價。';
+          else {
+            slDistPct = ((sl - entry) / entry) * 100;
+            tpDistPct = ((entry - tp) / entry) * 100;
+            rr = tpDistPct / slDistPct;
+          }
+        }
+      } else {
+        slDistPct = Math.max(0.1, Number(state.manualSlPct) || 5);
+        rr = Math.max(0.05, Number(state.manualRR) || 2);
+        tpDistPct = slDistPct * rr;
+      }
+
+      // Position & Risk calculations
+      let actualRiskPct = 0;
+      let actualPosPct = 0;
+      if (state.posMode === 'risk') {
+        actualRiskPct = Math.max(0.05, Math.min(100, Number(state.riskPct) || 2));
+        actualPosPct = slDistPct > 0 ? (actualRiskPct / slDistPct) * 100 : 0;
+      } else {
+        actualPosPct = Math.max(0.1, Number(state.customPosPct) || 25);
+        actualRiskPct = Math.min(100, (actualPosPct * slDistPct) / 100);
+      }
+
+      const posDollar = capital * (actualPosPct / 100);
+      const riskDollar = capital * (actualRiskPct / 100);
+      const rewardDollar = riskDollar * rr;
+
+      // Expectancy & Odds
+      const winRate = Math.max(0.01, Math.min(0.99, (Number(state.winRate) || 45) / 100));
+      const lossRate = 1 - winRate;
+      const evR = (winRate * rr) - (lossRate * 1);
+      const evPct = evR * actualRiskPct;
+      const evDollar = evR * riskDollar;
+      const breakevenWR = (1 / (1 + rr)) * 100;
+      const kellyPct = Math.max(0, (winRate - (lossRate / rr)) * 100);
+
+      // Consecutive losses
+      const n = Math.max(1, Math.min(100, Math.round(Number(state.streakN) || 5)));
+      const rFrac = actualRiskPct / 100;
+      const compRemain = capital * Math.pow(1 - rFrac, n);
+      const compLossAmt = capital - compRemain;
+      const compDDPct = (compLossAmt / capital) * 100;
+      const compRecoverPct = compRemain > 0 ? ((capital / compRemain) - 1) * 100 : Infinity;
+
+      const fixedLossAmt = Math.min(capital, riskDollar * n);
+      const fixedRemain = Math.max(0, capital - fixedLossAmt);
+      const fixedDDPct = (fixedLossAmt / capital) * 100;
+      const fixedRecoverPct = fixedRemain > 0 ? ((capital / fixedRemain) - 1) * 100 : Infinity;
+      const streakProb = Math.pow(lossRate, n) * 100;
+
+      return {
+        capital, slDistPct, tpDistPct, rr, priceError,
+        actualRiskPct, actualPosPct, posDollar, riskDollar, rewardDollar,
+        winRate, lossRate, evR, evPct, evDollar, breakevenWR, kellyPct,
+        n, rFrac, compRemain, compLossAmt, compDDPct, compRecoverPct,
+        fixedRemain, fixedLossAmt, fixedDDPct, fixedRecoverPct, streakProb
+      };
+    }
+
+    function simulatePaths(m) {
+      const trades = Math.max(10, Math.min(1000, Math.round(Number(state.simTrades) || 100)));
+      const labels = Array.from({ length: trades + 1 }, (_, i) => i);
+
+      // Expected Value theoretical path
+      const expectedPath = [m.capital];
+      for (let t = 1; t <= trades; t++) {
+        if (state.simMode === 'compound') {
+          expectedPath.push(expectedPath[t - 1] * (1 + m.evPct / 100));
+        } else {
+          expectedPath.push(Math.max(0, m.capital + t * m.evDollar));
+        }
+      }
+
+      // Run 5 Monte Carlo paths and select the median path to display
+      const numPaths = 5;
+      const pathEntries = [];
+
+      for (let p = 0; p < numPaths; p++) {
+        const rng = createRng(state.simSeed * 9973 + p * 7919);
+        const eq = [m.capital];
+        let peak = m.capital;
+        let maxDD = 0;
+        let curStreak = 0;
+        let maxStreak = 0;
+        let wins = 0;
+        let losses = 0;
+
+        for (let t = 1; t <= trades; t++) {
+          const prev = eq[t - 1];
+          if (prev <= 0) {
+            eq.push(0);
+            continue;
+          }
+          const isWin = rng() < m.winRate;
+          let next = prev;
+          if (isWin) {
+            wins++;
+            curStreak = 0;
+            if (state.simMode === 'compound') {
+              next = prev * (1 + m.rFrac * m.rr);
+            } else {
+              next = prev + m.rewardDollar;
+            }
+          } else {
+            losses++;
+            curStreak++;
+            if (curStreak > maxStreak) maxStreak = curStreak;
+            if (state.simMode === 'compound') {
+              next = prev * (1 - m.rFrac);
+            } else {
+              next = Math.max(0, prev - m.riskDollar);
+            }
+          }
+          if (next > peak) peak = next;
+          const dd = peak > 0 ? ((peak - next) / peak) * 100 : 0;
+          if (dd > maxDD) maxDD = dd;
+          eq.push(next);
+        }
+        pathEntries.push({
+          eq,
+          finalVal: eq[eq.length - 1],
+          stats: { wins, losses, maxDD, maxStreak }
+        });
+      }
+
+      pathEntries.sort((a, b) => a.finalVal - b.finalVal);
+      const medianEntry = pathEntries[Math.floor(pathEntries.length / 2)];
+      const medianPath = medianEntry.eq;
+      const mainStats = medianEntry.stats;
+      const medianFinal = medianEntry.finalVal;
+      const minFinal = pathEntries[0].finalVal;
+      const maxFinal = pathEntries[pathEntries.length - 1].finalVal;
+
+      return {
+        labels, expectedPath, medianPath, mainStats,
+        medianFinal, minFinal, maxFinal
+      };
+    }
+
+    function updateHoverBar(tradeIdx, expVal, medVal, isDefault) {
+      el('hoverTradeLabel').textContent = isDefault
+        ? `期末（第 ${tradeIdx} 筆）— 點擊或滑動圖表查看各筆數值`
+        : `第 ${tradeIdx} 筆交易`;
+      el('hoverExpVal').textContent = formatMoney(expVal);
+      el('hoverMedVal').textContent = formatMoney(medVal);
+    }
+
+    function renderChart(sim) {
+      const ctx = el('equityChart').getContext('2d');
+      const lastIdx = sim.labels.length - 1;
+      updateHoverBar(lastIdx, sim.expectedPath[lastIdx], sim.medianPath[lastIdx], true);
+
+      const datasets = [
+        {
+          label: '理論期望值曲線',
+          data: sim.expectedPath,
+          borderColor: '#38bdf8',
+          backgroundColor: 'rgba(56, 189, 248, 0.1)',
+          borderWidth: 2.5,
+          borderDash: [6, 4],
+          pointRadius: 0,
+          pointHoverRadius: 4,
+          tension: 0.2,
+          order: 1
+        },
+        {
+          label: '蒙地卡羅中位數',
+          data: sim.medianPath,
+          borderColor: '#34d399',
+          backgroundColor: 'rgba(52, 211, 153, 0.08)',
+          borderWidth: 2.5,
+          pointRadius: 0,
+          pointHoverRadius: 4,
+          fill: true,
+          tension: 0.15,
+          order: 2
+        }
+      ];
+
+      if (equityChart) {
+        equityChart.data.labels = sim.labels;
+        equityChart.data.datasets = datasets;
+        equityChart.update('none');
+        return;
+      }
+
+      equityChart = new Chart(ctx, {
+        type: 'line',
+        data: { labels: sim.labels, datasets },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          interaction: { mode: 'index', intersect: false },
+          plugins: {
+            legend: {
+              labels: {
+                color: '#cbd5e1',
+                font: { size: 11 }
+              }
+            },
+            tooltip: {
+              enabled: false,
+              external: (context) => {
+                const tooltipModel = context.tooltip;
+                if (!tooltipModel || tooltipModel.opacity === 0 || !tooltipModel.dataPoints?.length) {
+                  const chart = context.chart;
+                  const expArr = chart.data.datasets[0]?.data || [];
+                  const medArr = chart.data.datasets[1]?.data || [];
+                  const idx = Math.max(0, expArr.length - 1);
+                  updateHoverBar(idx, expArr[idx] || 0, medArr[idx] || 0, true);
+                  return;
+                }
+                const pt = tooltipModel.dataPoints[0];
+                const idx = pt.dataIndex;
+                const chart = context.chart;
+                const expVal = chart.data.datasets[0]?.data?.[idx] ?? 0;
+                const medVal = chart.data.datasets[1]?.data?.[idx] ?? 0;
+                updateHoverBar(idx, expVal, medVal, false);
+              }
+            }
+          },
+          scales: {
+            x: {
+              grid: { color: 'rgba(51, 65, 85, 0.35)' },
+              ticks: { color: '#94a3b8', maxTicksLimit: 8, font: { size: 11 } },
+              title: { display: true, text: '交易次數', color: '#64748b', font: { size: 11 } }
+            },
+            y: {
+              grid: { color: 'rgba(51, 65, 85, 0.35)' },
+              ticks: {
+                color: '#94a3b8',
+                font: { size: 11 },
+                callback: (val) => formatShortMoney(val)
+              }
+            }
+          }
+        }
+      });
+    }
+
+    function render() {
+      const m = computeMetrics();
+      const sim = simulatePaths(m);
+
+      // Price validation banner
+      const errBox = el('priceValidationMsg');
+      if (state.rrMode === 'price' && m.priceError) {
+        errBox.textContent = m.priceError;
+        errBox.classList.remove('hidden');
+      } else {
+        errBox.classList.add('hidden');
+      }
+
+      // Top KPIs
+      el('kpiRRBadge').textContent = `1 : ${m.rr.toFixed(2)}`;
+      el('kpiRRValue').textContent = `${m.rr.toFixed(2)} R`;
+      el('kpiRRSub').textContent = `損益兩平勝率: ${m.breakevenWR.toFixed(1)}%`;
+
+      const evSign = m.evR >= 0 ? '+' : '';
+      el('kpiEVValue').textContent = `${evSign}${m.evR.toFixed(2)} R`;
+      el('kpiEVValue').className = `mt-2 text-2xl sm:text-3xl font-bold tracking-tight ${m.evR >= 0 ? 'text-emerald-400' : 'text-rose-400'}`;
+      el('kpiEVBadge').textContent = m.evR >= 0 ? '正期望值' : '負期望值';
+      el('kpiEVBadge').className = m.evR >= 0
+        ? 'text-[11px] px-2 py-0.5 rounded-full font-medium bg-emerald-500/15 text-emerald-300 border border-emerald-500/30'
+        : 'text-[11px] px-2 py-0.5 rounded-full font-medium bg-rose-500/15 text-rose-300 border border-rose-500/30';
+      el('kpiEVSub').textContent = `平均每筆預期 ${evSign}${formatMoney(m.evDollar)} (${evSign}${m.evPct.toFixed(2)}%)`;
+
+      const entryP = Math.max(0.0001, Number(state.entryPrice) || 100);
+      const sharesExact = m.posDollar / entryP;
+      const sharesFloor = Math.floor(sharesExact);
+      const sharesText = Math.abs(sharesExact - sharesFloor) < 0.01
+        ? `${sharesFloor.toLocaleString('en-US')} 股`
+        : `${sharesFloor.toLocaleString('en-US')} 股 (${sharesExact.toFixed(2)})`;
+
+      el('kpiPosBadge').textContent = `倉位 ${m.actualPosPct.toFixed(1)}%`;
+      el('kpiPosValue').textContent = formatMoney(m.posDollar);
+      el('kpiPosSub').textContent = `可買入 ${sharesFloor.toLocaleString('en-US')} 股 · 最大止蝕 ${formatMoney(m.riskDollar)} (${m.actualRiskPct.toFixed(2)}%)`;
+      el('sharesReadout').textContent = sharesText;
+      el('sharesSubReadout').textContent = `依買入價 USD $${entryP.toLocaleString('en-US', { maximumFractionDigits: 4 })} 計`;
+
+      el('kpiStreakN').textContent = m.n;
+      el('kpiStreakValue').textContent = `-${m.compDDPct.toFixed(2)}%`;
+      el('kpiStreakSub').textContent = `剩餘資金: ${formatMoney(m.compRemain)} (-${formatMoney(m.compLossAmt)})`;
+
+      // Card 1 readouts
+      el('riskAmountLabel').textContent = `-${formatMoney(m.capital * (state.riskPct / 100))}`;
+      el('customPosAmountLabel').textContent = formatMoney(m.capital * (state.customPosPct / 100));
+      el('posReadoutDollar').textContent = formatMoney(m.posDollar);
+      el('posReadoutPct').textContent = `(${m.actualPosPct.toFixed(1)}%)`;
+      el('riskReadoutDollar').textContent = `-${formatMoney(m.riskDollar)}`;
+      el('riskReadoutPct').textContent = `(-${m.actualRiskPct.toFixed(2)}%)`;
+
+      if (m.actualPosPct > 100.01) {
+        el('leverageWarning').classList.remove('hidden');
+        el('leverageRatioText').textContent = `${(m.actualPosPct / 100).toFixed(2)}x`;
+      } else {
+        el('leverageWarning').classList.add('hidden');
+      }
+
+      // Card 2 readouts
+      el('tpPctReadout').textContent = `+${m.tpDistPct.toFixed(2)}%`;
+      el('tpDollarReadout').textContent = `(+${formatMoney(m.rewardDollar)})`;
+      el('slPctReadout').textContent = `-${m.slDistPct.toFixed(2)}%`;
+      el('slDollarReadout').textContent = `(-${formatMoney(m.riskDollar)})`;
+      el('manualRRLabel').textContent = `1 : ${m.rr.toFixed(2)}`;
+
+      // Card 3 readouts
+      el('lossRateLabel').textContent = `敗率: ${(m.lossRate * 100).toFixed(1)}%`;
+      el('evRReadout').textContent = `${evSign}${m.evR.toFixed(2)} R`;
+      el('evRReadout').className = `text-sm font-bold ${m.evR >= 0 ? 'text-emerald-400' : 'text-rose-400'}`;
+      el('breakevenWRReadout').textContent = `${m.breakevenWR.toFixed(1)}%`;
+      el('kellyReadout').textContent = `${m.kellyPct.toFixed(1)}%`;
+
+      // Card 4 Streak Stress Test
+      el('streakProbLabel').textContent = `發生機率: ${m.streakProb < 0.01 ? '<0.01' : m.streakProb.toFixed(2)}%`;
+      el('streakCompDDPct').textContent = `-${m.compDDPct.toFixed(2)}%`;
+      el('streakCompRemain').textContent = `剩餘 ${formatMoney(m.compRemain)}`;
+      el('streakCompLossAmt').textContent = `-${formatMoney(m.compLossAmt)}`;
+      el('streakCompRecover').textContent = isFinite(m.compRecoverPct) ? `+${m.compRecoverPct.toFixed(2)}%` : '無法回本';
+
+      el('streakFixedDDPct').textContent = `-${m.fixedDDPct.toFixed(2)}%`;
+      el('streakFixedRemain').textContent = `剩餘 ${formatMoney(m.fixedRemain)}`;
+      el('streakFixedLossAmt').textContent = `-${formatMoney(m.fixedLossAmt)}`;
+      el('streakFixedRecover').textContent = isFinite(m.fixedRecoverPct) ? `+${m.fixedRecoverPct.toFixed(2)}%` : '爆倉歸零';
+
+      // Streak breakdown table
+      const checkpoints = Array.from(new Set([1, 3, 5, 10, m.n])).sort((a, b) => a - b);
+      el('streakTableBody').innerHTML = checkpoints.map((k) => {
+        const rem = m.capital * Math.pow(1 - m.rFrac, k);
+        const dd = ((m.capital - rem) / m.capital) * 100;
+        const rec = rem > 0 ? ((m.capital / rem) - 1) * 100 : Infinity;
+        const prob = Math.pow(m.lossRate, k) * 100;
+        const highlight = k === m.n ? 'bg-rose-950/35 font-semibold text-white' : '';
+        return `
+          <tr class="${highlight}">
+            <td class="py-2 pr-3">${k} 次${k === m.n ? ' (目前設定)' : ''}</td>
+            <td class="py-2 px-3">${formatMoney(rem)}</td>
+            <td class="py-2 px-3 text-rose-400">-${dd.toFixed(2)}%</td>
+            <td class="py-2 px-3 text-amber-300">${isFinite(rec) ? '+' + rec.toFixed(2) + '%' : '∞'}</td>
+            <td class="py-2 pl-3 text-right">${prob < 0.01 ? '<0.01%' : prob.toFixed(2) + '%'}</td>
+          </tr>
+        `;
+      }).join('');
+
+      // Card 5 Simulation KPIs & Chart
+      const expFinal = sim.expectedPath[sim.expectedPath.length - 1];
+      const expPct = ((expFinal - m.capital) / m.capital) * 100;
+      const randFinal = sim.medianFinal;
+      el('simExpectedFinal').textContent = formatMoney(expFinal);
+      el('simExpectedPct').textContent = `${expPct >= 0 ? '+' : ''}${expPct.toFixed(2)}%`;
+
+      el('simRandomFinal').textContent = formatMoney(randFinal);
+      el('simRandomFinal').className = `text-sm sm:text-base font-bold ${randFinal >= m.capital ? 'text-emerald-400' : 'text-rose-400'}`;
+      el('simRandomWinLoss').textContent = `${sim.mainStats.wins} 勝 / ${sim.mainStats.losses} 負`;
+
+      el('simMaxDD').textContent = `-${sim.mainStats.maxDD.toFixed(2)}%`;
+      el('simMaxStreak').textContent = `最長連虧 ${sim.mainStats.maxStreak} 次`;
+
+      el('simMedianFinal').textContent = formatMoney(sim.medianFinal);
+      el('simMinMaxRange').textContent = `區間: ${formatShortMoney(sim.minFinal)} - ${formatShortMoney(sim.maxFinal)}`;
+
+      renderChart(sim);
+    }
+
+    // Sync helpers
+    function onKeyChanged(key) {
+      if (key === 'manualSlPct' || key === 'manualRR') {
+        syncPricesFromManual();
+        syncPosModes(state.posMode);
+      } else if (key === 'riskPct') {
+        syncPosModes('risk');
+      } else if (key === 'customPosPct') {
+        syncPosModes('custom');
+      }
+    }
+
+    function bindPair(rangeId, inputId, key) {
+      const r = el(rangeId);
+      const inp = el(inputId);
+      r.addEventListener('input', () => {
+        state[key] = parseFloat(r.value);
+        inp.value = r.value;
+        onKeyChanged(key);
+        render();
+      });
+      inp.addEventListener('input', () => {
+        const val = parseFloat(inp.value);
+        if (!isNaN(val)) {
+          state[key] = val;
+          r.value = val;
+          onKeyChanged(key);
+          render();
+        }
+      });
+    }
+
+    bindPair('riskPctRange', 'riskPctInput', 'riskPct');
+    bindPair('customPosPctRange', 'customPosPctInput', 'customPosPct');
+    bindPair('manualSlPctRange', 'manualSlPctInput', 'manualSlPct');
+    bindPair('manualRRRange', 'manualRRInput', 'manualRR');
+    bindPair('winRateRange', 'winRateInput', 'winRate');
+    bindPair('streakRange', 'streakInput', 'streakN');
+
+    function syncManualFromPrices() {
+      const m = computeMetrics();
+      if (!m.priceError) {
+        state.manualSlPct = Number(m.slDistPct.toFixed(2));
+        state.manualRR = Number(m.rr.toFixed(2));
+        el('manualSlPctInput').value = state.manualSlPct;
+        el('manualSlPctRange').value = Math.min(30, Math.max(0.5, state.manualSlPct));
+        el('manualRRInput').value = state.manualRR;
+        el('manualRRRange').value = Math.min(10, Math.max(0.5, state.manualRR));
+      }
+    }
+
+    function syncPricesFromManual() {
+      const entry = Math.max(0.0001, Number(state.entryPrice) || 100);
+      const slPct = Math.max(0.1, Number(state.manualSlPct) || 5) / 100;
+      const rr = Math.max(0.05, Number(state.manualRR) || 2);
+      const tpPct = slPct * rr;
+      if (state.direction === 'long') {
+        state.slPrice = Number((entry * (1 - slPct)).toFixed(4));
+        state.tpPrice = Number((entry * (1 + tpPct)).toFixed(4));
+      } else {
+        state.slPrice = Number((entry * (1 + slPct)).toFixed(4));
+        state.tpPrice = Number((entry * (1 - tpPct)).toFixed(4));
+      }
+      el('slPriceInput').value = state.slPrice;
+      el('tpPriceInput').value = state.tpPrice;
+    }
+
+    function syncPosModes(sourceMode) {
+      const m = computeMetrics();
+      if (sourceMode === 'risk') {
+        state.customPosPct = Number(m.actualPosPct.toFixed(2));
+        el('customPosPctInput').value = state.customPosPct;
+        el('customPosPctRange').value = Math.min(100, Math.max(1, state.customPosPct));
+      } else {
+        state.riskPct = Number(m.actualRiskPct.toFixed(2));
+        el('riskPctInput').value = state.riskPct;
+        el('riskPctRange').value = Math.min(15, Math.max(0.25, state.riskPct));
+      }
+    }
+
+    function parseCapitalString(str) {
+      const cleaned = String(str || '').replace(/,/g, '').trim();
+      const val = parseFloat(cleaned);
+      return isNaN(val) ? NaN : val;
+    }
+
+    el('capitalInput').addEventListener('input', (e) => {
+      const val = parseCapitalString(e.target.value);
+      if (!isNaN(val) && val >= 0) {
+        state.capital = val;
+        render();
+      }
+    });
+
+    el('capitalInput').addEventListener('blur', () => {
+      const val = Math.max(100, Number(state.capital) || 100000);
+      state.capital = val;
+      el('capitalInput').value = val.toLocaleString('en-US');
+      render();
+    });
+
+    ['entryPriceInput', 'tpPriceInput', 'slPriceInput', 'simTradesInput'].forEach((id) => {
+      el(id).addEventListener('input', (e) => {
+        const val = parseFloat(e.target.value);
+        if (!isNaN(val)) {
+          if (id === 'entryPriceInput') state.entryPrice = val;
+          if (id === 'tpPriceInput') state.tpPrice = val;
+          if (id === 'slPriceInput') state.slPrice = val;
+          if (id === 'simTradesInput') state.simTrades = val;
+          if (id === 'entryPriceInput' || id === 'tpPriceInput' || id === 'slPriceInput') {
+            syncManualFromPrices();
+            syncPosModes(state.posMode);
+          }
+          render();
+        }
+      });
+    });
+
+    const EMBEDDED_FINNHUB_KEY = "";
+
+    function getCookie(name) {
+      try {
+        const match = document.cookie.match(new RegExp('(?:^|; )' + name + '=([^;]*)'));
+        return match ? decodeURIComponent(match[1]) : '';
+      } catch (e) {
+        return '';
+      }
+    }
+
+    function setCookie(name, val, days = 365) {
+      try {
+        if (val) {
+          const exp = new Date(Date.now() + days * 864e5).toUTCString();
+          document.cookie = `${name}=${encodeURIComponent(val)}; expires=${exp}; path=/; SameSite=Lax`;
+        } else {
+          document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/; SameSite=Lax`;
+        }
+      } catch (e) {}
+    }
+
+    function getStoredFinnhubKey() {
+      let k = '';
+      try { k = localStorage.getItem('finnhub_api_key') || ''; } catch (e) {}
+      if (!k) {
+        try { k = sessionStorage.getItem('finnhub_api_key') || ''; } catch (e) {}
+      }
+      if (!k) {
+        k = getCookie('finnhub_api_key');
+      }
+      if (!k && EMBEDDED_FINNHUB_KEY) {
+        k = EMBEDDED_FINNHUB_KEY;
+      }
+      return k;
+    }
+
+    function setStoredFinnhubKey(k) {
+      const clean = (k || '').trim();
+      try {
+        if (clean) localStorage.setItem('finnhub_api_key', clean);
+        else localStorage.removeItem('finnhub_api_key');
+      } catch (e) {}
+      try {
+        if (clean) sessionStorage.setItem('finnhub_api_key', clean);
+        else sessionStorage.removeItem('finnhub_api_key');
+      } catch (e) {}
+      setCookie('finnhub_api_key', clean, 365);
+    }
+
+    el('finnhubKeyInput').value = getStoredFinnhubKey();
+
+    el('finnhubKeyInput').addEventListener('input', () => {
+      setStoredFinnhubKey(el('finnhubKeyInput').value);
+    });
+
+    el('toggleApiKeyBtn').addEventListener('click', () => {
+      el('apiKeyBox').classList.toggle('hidden');
+    });
+
+    el('saveApiKeyBtn').addEventListener('click', () => {
+      const k = (el('finnhubKeyInput').value || '').trim();
+      setStoredFinnhubKey(k);
+      const statusEl = el('tickerStatus');
+      statusEl.textContent = k
+        ? '已儲存 Finnhub API Key 至目前瀏覽器。若需跨開機永久保留，建議點擊「下載專屬版 (.html)」。'
+        : '已清除 Finnhub API Key。';
+      statusEl.className = 'text-[11px] text-emerald-400';
+      statusEl.classList.remove('hidden');
+    });
+
+    function triggerDownloadHtml(requireKey) {
+      const k = (el('finnhubKeyInput').value || '').trim() || getStoredFinnhubKey();
+      const statusEl = el('tickerStatus');
+      if (requireKey && !k) {
+        statusEl.textContent = '請先輸入你的 Finnhub API Key，再點擊下載；或點擊頂部「下載程式 (.html)」直接下載主程式。';
+        statusEl.className = 'text-[11px] text-amber-400';
+        statusEl.classList.remove('hidden');
+        return;
+      }
+      if (k) setStoredFinnhubKey(k);
+      let docHtml = '<!DOCTYPE html>\n' + document.documentElement.outerHTML;
+      docHtml = docHtml.replace(/const EMBEDDED_FINNHUB_KEY = "[^"]*";/, `const EMBEDDED_FINNHUB_KEY = ${JSON.stringify(k || '')};`);
+      const blob = new Blob([docHtml], { type: 'text/html;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = k ? 'risk_calculator_with_api.html' : 'risk_calculator.html';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      statusEl.textContent = k
+        ? '已下載專屬版檔案 (risk_calculator_with_api.html)，下次開機直接以瀏覽器開啟即可自動帶入 API Key！'
+        : '已下載程式檔案 (risk_calculator.html) 至你的裝置！';
+      statusEl.className = 'text-[11px] text-emerald-400';
+      statusEl.classList.remove('hidden');
+    }
+
+    el('downloadWithKeyBtn').addEventListener('click', () => triggerDownloadHtml(true));
+    el('downloadAppHeaderBtn').addEventListener('click', () => triggerDownloadHtml(false));
+
+    document.querySelectorAll('.copy-url-btn').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        const urlToCopy = btn.dataset.copyUrl;
+        let copied = false;
+        try {
+          if (navigator.clipboard && navigator.clipboard.writeText) {
+            await navigator.clipboard.writeText(urlToCopy);
+            copied = true;
+          }
+        } catch (e) {}
+        if (!copied) {
+          try {
+            const ta = document.createElement('textarea');
+            ta.value = urlToCopy;
+            ta.style.position = 'fixed';
+            ta.style.opacity = '0';
+            document.body.appendChild(ta);
+            ta.select();
+            document.execCommand('copy');
+            document.body.removeChild(ta);
+            copied = true;
+          } catch (e) {}
+        }
+        const orig = btn.textContent;
+        btn.textContent = copied ? '已複製!' : '請長按連結複製';
+        setTimeout(() => { btn.textContent = orig; }, 1800);
+      });
+    });
+
+    async function fetchWithTimeout(url, ms = 4000) {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), ms);
+      try {
+        return await fetch(url, { cache: 'no-store', signal: controller.signal });
+      } finally {
+        clearTimeout(timer);
+      }
+    }
+
+    async function fetchUSStockPrice() {
+      const raw = (el('tickerInput').value || '').trim().toUpperCase();
+      const symbol = raw.replace(/[^A-Z0-9.\-]/g, '');
+      const statusEl = el('tickerStatus');
+      const btn = el('fetchTickerBtn');
+
+      if (!symbol) {
+        statusEl.textContent = '請輸入有效美股代號（例如 AAPL、NVDA、TSLA）。';
+        statusEl.className = 'text-[11px] text-rose-400';
+        statusEl.classList.remove('hidden');
+        return;
+      }
+
+      el('tickerInput').value = symbol;
+      btn.disabled = true;
+      btn.textContent = '查詢中...';
+      statusEl.textContent = `正在獲取 ${symbol} 最新報價...`;
+      statusEl.className = 'text-[11px] text-sky-400';
+      statusEl.classList.remove('hidden');
+
+      let fetchedPrice = null;
+      let sourceLabel = '';
+      let finnhubError = '';
+
+      try {
+        // 1. Finnhub direct CORS-enabled API (if user provided key)
+        const finnhubKey = (el('finnhubKeyInput').value || '').trim() || getStoredFinnhubKey();
+        if (finnhubKey) {
+          setStoredFinnhubKey(finnhubKey);
+          try {
+            const res = await fetchWithTimeout(
+              `https://finnhub.io/api/v1/quote?symbol=${encodeURIComponent(symbol)}&token=${encodeURIComponent(finnhubKey)}`,
+              5000
+            );
+            if (res.status === 401 || res.status === 403) {
+              finnhubError = 'Finnhub API Key 無效或無權限，請檢查是否複製完整。';
+            } else if (res.status === 429) {
+              finnhubError = 'Finnhub 查詢次數已達每分鐘 60 次上限，請稍候 1 分鐘再試。';
+            } else if (res.ok) {
+              const data = await res.json();
+              if (typeof data?.c === 'number' && isFinite(data.c) && data.c > 0) {
+                fetchedPrice = data.c;
+                sourceLabel = 'Finnhub';
+              } else {
+                finnhubError = `Finnhub 查無 ${symbol} 報價（請確認為有效美股代號）。`;
+              }
+            }
+          } catch (e) {
+            finnhubError = 'Finnhub 連線逾時或受網路限制。';
+          }
+        }
+
+        // 2. If no Finnhub key or Finnhub failed (and not an invalid key/symbol), try Stooq & Yahoo proxies in parallel (max 4s)
+        if (fetchedPrice === null && !finnhubError.includes('無效') && !finnhubError.includes('查無')) {
+          const stooqSymbol = symbol.includes('.') ? symbol.toLowerCase() : `${symbol.toLowerCase()}.us`;
+          const stooqUrl = `https://stooq.com/q/l/?s=${encodeURIComponent(stooqSymbol)}&f=sd2t2ohlcv&h&e=csv`;
+          const yahooUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=1m&range=1d`;
+
+          const tryStooq = async (proxyUrl) => {
+            const res = await fetchWithTimeout(proxyUrl, 4000);
+            if (!res.ok) throw new Error('bad status');
+            const text = await res.text();
+            const lines = text.trim().split(/\r?\n/);
+            if (lines.length < 2) throw new Error('no data');
+            const closeVal = parseFloat(lines[1].split(',')[6]);
+            if (!isFinite(closeVal) || closeVal <= 0) throw new Error('invalid price');
+            return { price: closeVal, source: 'Stooq' };
+          };
+
+          const tryYahoo = async (proxyUrl) => {
+            const res = await fetchWithTimeout(proxyUrl, 4000);
+            if (!res.ok) throw new Error('bad status');
+            const data = await res.json();
+            const price = data?.chart?.result?.[0]?.meta?.regularMarketPrice;
+            if (typeof price !== 'number' || !isFinite(price) || price <= 0) throw new Error('invalid price');
+            return { price, source: 'Yahoo' };
+          };
+
+          try {
+            const winner = await Promise.any([
+              tryStooq(`https://api.allorigins.win/raw?url=${encodeURIComponent(stooqUrl)}`),
+              tryStooq(`https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(stooqUrl)}`),
+              tryYahoo(`https://api.allorigins.win/raw?url=${encodeURIComponent(yahooUrl)}`),
+              tryYahoo(`https://corsproxy.io/?${encodeURIComponent(yahooUrl)}`)
+            ]);
+            fetchedPrice = winner.price;
+            sourceLabel = winner.source;
+          } catch (e) {}
+        }
+      } finally {
+        btn.disabled = false;
+        btn.textContent = '獲取最新價';
+      }
+
+      if (fetchedPrice !== null) {
+        state.entryPrice = Number(fetchedPrice.toFixed(2));
+        el('entryPriceInput').value = state.entryPrice;
+        syncPricesFromManual();
+        syncPosModes(state.posMode);
+        render();
+        statusEl.textContent = `${symbol} 最新價 (${sourceLabel}): $${state.entryPrice.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USD（已更新現價並同步止賺止蝕）`;
+        statusEl.className = 'text-[11px] text-emerald-400';
+      } else {
+        el('apiKeyBox').classList.remove('hidden');
+        statusEl.textContent = finnhubError || `無法連線取得 ${symbol} 報價，請點擊「Key」輸入免費 Finnhub API Key 或手動輸入現價。`;
+        statusEl.className = 'text-[11px] text-amber-400';
+      }
+    }
+
+    el('fetchTickerBtn').addEventListener('click', fetchUSStockPrice);
+    el('tickerInput').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        fetchUSStockPrice();
+      }
+    });
+
+    el('simCompoundSelect').addEventListener('change', (e) => {
+      state.simMode = e.target.value;
+      render();
+    });
+
+    el('rerunSimBtn').addEventListener('click', () => {
+      state.simSeed = Math.floor(Math.random() * 100000) + 1;
+      render();
+    });
+
+    // Position mode toggles
+    el('posModeRiskBtn').addEventListener('click', () => {
+      syncPosModes('custom');
+      state.posMode = 'risk';
+      el('posModeRiskBtn').className = 'px-3 py-2 text-xs font-medium rounded-xl border transition tab-btn-active';
+      el('posModeCustomBtn').className = 'px-3 py-2 text-xs font-medium rounded-xl border transition tab-btn-inactive';
+      el('posModeRiskBox').classList.remove('hidden');
+      el('posModeCustomBox').classList.add('hidden');
+      render();
+    });
+
+    el('posModeCustomBtn').addEventListener('click', () => {
+      syncPosModes('risk');
+      state.posMode = 'custom';
+      el('posModeCustomBtn').className = 'px-3 py-2 text-xs font-medium rounded-xl border transition tab-btn-active';
+      el('posModeRiskBtn').className = 'px-3 py-2 text-xs font-medium rounded-xl border transition tab-btn-inactive';
+      el('posModeCustomBox').classList.remove('hidden');
+      el('posModeRiskBox').classList.add('hidden');
+      render();
+    });
+
+    // Quick risk / pos buttons
+    document.querySelectorAll('.quick-risk-btn').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const v = parseFloat(btn.dataset.risk);
+        state.riskPct = v;
+        el('riskPctInput').value = v;
+        el('riskPctRange').value = v;
+        syncPosModes('risk');
+        render();
+      });
+    });
+
+    document.querySelectorAll('.quick-pos-btn').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const v = parseFloat(btn.dataset.pos);
+        state.customPosPct = v;
+        el('customPosPctInput').value = v;
+        el('customPosPctRange').value = v;
+        syncPosModes('custom');
+        render();
+      });
+    });
+
+    // R:R mode toggles
+    el('rrModePriceBtn').addEventListener('click', () => {
+      syncPricesFromManual();
+      state.rrMode = 'price';
+      el('rrModePriceBtn').className = 'px-2.5 py-1 text-[11px] font-medium tab-btn-active border-0';
+      el('rrModeManualBtn').className = 'px-2.5 py-1 text-[11px] font-medium tab-btn-inactive border-0';
+      el('rrPriceBox').classList.remove('hidden');
+      el('rrManualBox').classList.add('hidden');
+      render();
+    });
+
+    el('rrModeManualBtn').addEventListener('click', () => {
+      syncManualFromPrices();
+      state.rrMode = 'manual';
+      el('rrModeManualBtn').className = 'px-2.5 py-1 text-[11px] font-medium tab-btn-active border-0';
+      el('rrModePriceBtn').className = 'px-2.5 py-1 text-[11px] font-medium tab-btn-inactive border-0';
+      el('rrManualBox').classList.remove('hidden');
+      el('rrPriceBox').classList.add('hidden');
+      render();
+    });
+
+    // Direction toggles
+    el('dirLongBtn').addEventListener('click', () => {
+      state.direction = 'long';
+      el('dirLongBtn').className = 'px-3 py-1.5 text-xs font-semibold rounded-xl border border-emerald-500/50 bg-emerald-500/15 text-emerald-300 transition';
+      el('dirShortBtn').className = 'px-3 py-1.5 text-xs font-semibold rounded-xl border border-slate-700 bg-slate-800/70 text-slate-400 hover:text-slate-200 transition';
+      if (state.tpPrice < state.entryPrice && state.slPrice > state.entryPrice) {
+        const tmp = state.tpPrice;
+        state.tpPrice = state.slPrice;
+        state.slPrice = tmp;
+        el('tpPriceInput').value = state.tpPrice;
+        el('slPriceInput').value = state.slPrice;
+      }
+      render();
+    });
+
+    el('dirShortBtn').addEventListener('click', () => {
+      state.direction = 'short';
+      el('dirShortBtn').className = 'px-3 py-1.5 text-xs font-semibold rounded-xl border border-rose-500/50 bg-rose-500/15 text-rose-300 transition';
+      el('dirLongBtn').className = 'px-3 py-1.5 text-xs font-semibold rounded-xl border border-slate-700 bg-slate-800/70 text-slate-400 hover:text-slate-200 transition';
+      if (state.tpPrice > state.entryPrice && state.slPrice < state.entryPrice) {
+        const tmp = state.tpPrice;
+        state.tpPrice = state.slPrice;
+        state.slPrice = tmp;
+        el('tpPriceInput').value = state.tpPrice;
+        el('slPriceInput').value = state.slPrice;
+      }
+      render();
+    });
+
+    // Presets
+    function applyAllInputs() {
+      el('capitalInput').value = Number(state.capital).toLocaleString('en-US');
+      el('riskPctInput').value = state.riskPct;
+      el('riskPctRange').value = state.riskPct;
+      el('customPosPctInput').value = state.customPosPct;
+      el('customPosPctRange').value = state.customPosPct;
+      el('entryPriceInput').value = state.entryPrice;
+      el('tpPriceInput').value = state.tpPrice;
+      el('slPriceInput').value = state.slPrice;
+      el('manualSlPctInput').value = state.manualSlPct;
+      el('manualSlPctRange').value = state.manualSlPct;
+      el('manualRRInput').value = state.manualRR;
+      el('manualRRRange').value = state.manualRR;
+      el('winRateInput').value = state.winRate;
+      el('winRateRange').value = state.winRate;
+      el('streakInput').value = state.streakN;
+      el('streakRange').value = state.streakN;
+      el('simTradesInput').value = state.simTrades;
+      el('simCompoundSelect').value = state.simMode;
+      render();
+    }
+
+    el('presetConservativeBtn').addEventListener('click', () => {
+      state.riskPct = 1;
+      state.winRate = 45;
+      state.streakN = 8;
+      applyAllInputs();
+    });
+
+    el('presetAggressiveBtn').addEventListener('click', () => {
+      state.riskPct = 3;
+      state.winRate = 50;
+      state.streakN = 5;
+      applyAllInputs();
+    });
+
+    el('resetBtn').addEventListener('click', () => {
+      Object.assign(state, {
+        capital: 100000,
+        posMode: 'risk',
+        riskPct: 2,
+        customPosPct: 25,
+        rrMode: 'price',
+        direction: 'long',
+        entryPrice: 100,
+        tpPrice: 110,
+        slPrice: 95,
+        manualSlPct: 5,
+        manualRR: 2,
+        winRate: 45,
+        streakN: 5,
+        simTrades: 100,
+        simMode: 'compound',
+        simSeed: 1
+      });
+      el('posModeRiskBtn').click();
+      el('rrModePriceBtn').click();
+      el('dirLongBtn').click();
+      applyAllInputs();
+    });
+
+    window.addEventListener('load', render);
+  </script>
+</body>
+</html>
